@@ -64,6 +64,34 @@ def top_senders():
     conn.close()
 
 
+def frequent_daily_senders():
+    conn, cursor = setup_db()
+
+    # Fetch the senders who have emailed more than once in the same day.
+    cursor.execute(
+        """
+        SELECT sender, DATE(date) as email_date
+        FROM email_data 
+        GROUP BY sender, DATE(date)
+        HAVING COUNT(*) > 1
+        """
+    )
+    daily_counts = cursor.fetchall()
+
+    # Aggregate this data to get the number of "offenses" for each sender
+    offense_counts = {}
+    for sender, _ in daily_counts:
+        offense_counts[sender] = offense_counts.get(sender, 0) + 1
+
+    # Sort the senders by their number of "offenses"
+    sorted_senders = sorted(offense_counts.items(), key=lambda x: x[1], reverse=True)
+
+    for sender, offenses in sorted_senders:
+        print(f"{sender}: {offenses} offenses (emailed more than once in a single day)")
+
+    conn.close()
+
+
 def top_senders_to_excel(filename):
     conn, cursor = setup_db()
     cursor.execute(
@@ -99,9 +127,11 @@ def main():
         elif command == "to_excel":
             filename = sys.argv[2]
             top_senders_to_excel(filename)
+        elif command == "more_than_once":
+            frequent_daily_senders()
     else:
         print("Usage: python script.py <command>")
-        print("Commands: fetch, top, to_excel")
+        print("Commands: fetch, top, to_excel, more_than_once")
 
 
 if __name__ == "__main__":
